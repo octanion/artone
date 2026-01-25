@@ -1,0 +1,39 @@
+{
+  "kind": "collectionType",
+  "collectionName": "layers",
+  "info": {
+    "singularName": "layer",
+    "pluralName": "layers",
+    "displayName": "layer"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "order": {
+      "type": "integer"
+    },
+    "required": {
+      "type": "boolean",
+      "required": true,
+      "default": true
+    },
+    "products": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::product.product",
+      "inversedBy": "layers"
+    },
+    "system": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::system.system",
+      "inversedBy": "layers"
+    }
+  }
+}

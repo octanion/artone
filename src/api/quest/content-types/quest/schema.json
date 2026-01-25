@@ -1,0 +1,31 @@
+{
+  "kind": "collectionType",
+  "collectionName": "quests",
+  "info": {
+    "singularName": "quest",
+    "pluralName": "quests",
+    "displayName": "quest"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "fields": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::questfield.questfield",
+      "inversedBy": "quests"
+    },
+    "system": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::system.system",
+      "inversedBy": "quest"
+    }
+  }
+}

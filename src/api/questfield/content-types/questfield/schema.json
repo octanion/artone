@@ -1,0 +1,56 @@
+{
+  "kind": "collectionType",
+  "collectionName": "questfields",
+  "info": {
+    "singularName": "questfield",
+    "pluralName": "questfields",
+    "displayName": "questfield"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "type": {
+      "type": "enumeration",
+      "required": true,
+      "enum": [
+        "number",
+        "boolean",
+        "select",
+        "multiselect",
+        "relation"
+      ]
+    },
+    "required": {
+      "type": "boolean",
+      "required": true
+    },
+    "label": {
+      "type": "string",
+      "required": true
+    },
+    "help": {
+      "type": "string"
+    },
+    "option": {
+      "type": "json"
+    },
+    "relationCollection": {
+      "type": "enumeration",
+      "enum": [
+        "finchcolor"
+      ]
+    },
+    "quests": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::quest.quest",
+      "mappedBy": "fields"
+    }
+  }
+}
