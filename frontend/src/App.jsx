@@ -1,5 +1,105 @@
 import { useEffect, useState } from "react";
 
+// Новый компонент вывода результатов
+function CalcResult({ data }) {
+  if (!data || !data.result) return null;
+
+  const { result, answers } = data;
+
+  // 1) система и выбранный цвет (пока показываем ID цвета)
+  const systemName = result.name;
+  const colorId = answers?.colorpaint;
+
+  // фильтрация слоёв по флагам primerpaint / ggp
+  const filteredLayers = (result.layers || []).filter((layer) => {
+    const name = (layer.name || "").toLowerCase();
+
+    if (name.includes("глубокого проникновения") || name.includes("ггп")) {
+      return !!answers?.ggp;
+    }
+    if (name.includes("праймер")) {
+      return !!answers?.primerpaint;
+    }
+    return true;
+  });
+
+  // цена всех слоёв
+  const totalLayersPrice = filteredLayers.reduce(
+    (sum, layer) => sum + (layer.totalPrice || 0),
+    0
+  );
+
+  // общий примерный вес по слоям (1л ~ 1кг, 5л ~ 5кг — потом заменим на weight)
+  const totalLayersWeight = filteredLayers.reduce((sum, layer) => {
+    const layerWeight = (layer.products || []).reduce((acc, p) => {
+      const count = p.count || 0;
+      const vol = p.packageVolume || "";
+      const approxKg = vol.includes("5") ? 5 : 1;
+      return acc + count * approxKg;
+    }, 0);
+    return sum + layerWeight;
+  }, 0);
+
+  // 3) цена колеровки — пока 0 (потом подставим из справочника)
+  const colorPrice = 0;
+
+  // 4) общая стоимость
+  const grandTotalPrice = totalLayersPrice + colorPrice;
+
+  return (
+    <section style={{ marginTop: 24 }}>
+      {/* 1) строка: система + цвет */}
+      <h2>Результат расчёта</h2>
+      <p>
+        Система: <strong>{systemName}</strong>; выбранный цвет:{" "}
+        <strong>{colorId || "не выбран"}</strong>
+      </p>
+
+      {/* 2) слои по выбранным флагам */}
+      {filteredLayers.map((layer) => {
+        const layerWeight = (layer.products || []).reduce((acc, p) => {
+          const count = p.count || 0;
+          const vol = p.packageVolume || "";
+          const approxKg = vol.includes("5") ? 5 : 1;
+          return acc + count * approxKg;
+        }, 0);
+
+        return (
+          <div key={layer.layerId} style={{ marginTop: 16 }}>
+            <h3>{layer.name}</h3>
+            <p>
+              Покрытие слоя: {layer.totalCoveredArea} м²; стоимость слоя:{" "}
+              {layer.totalPrice} ₽; примерный вес слоя: {layerWeight} кг
+            </p>
+            <ul>
+              {(layer.products || []).map((p) => (
+                <li key={p.productId}>
+                  {p.name} ({p.packageVolume}) — {p.count} шт., покрытие{" "}
+                  {p.coveredArea} м², стоимость {p.totalPrice} ₽
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      })}
+
+      {/* 3) цена колеровки */}
+      <p style={{ marginTop: 16 }}>
+        Цена колеровки: <strong>{colorPrice}</strong> ₽
+      </p>
+
+      {/* 4) общая стоимость и вес */}
+      <p>
+        Общая стоимость всех слоёв и колеровки:{" "}
+        <strong>{grandTotalPrice}</strong> ₽
+      </p>
+      <p>
+        Общий примерный вес: <strong>{totalLayersWeight}</strong> кг
+      </p>
+    </section>
+  );
+}
+
 function App() {
   const [systems, setSystems] = useState([]);
   const [selectedSystemId, setSelectedSystemId] = useState("");
@@ -56,7 +156,11 @@ function App() {
         // приводим к простому виду { id, name }
         const items = (data.data || data || []).map((item) => ({
           id: item.id,
-          name: item.name || item.title || item.attributes?.name || `#${item.id}`,
+          name:
+            item.name ||
+            item.title ||
+            item.attributes?.name ||
+            `#${item.id}`,
         }));
         newOptions[col] = items;
       } catch (e) {
@@ -188,7 +292,9 @@ function App() {
               <option value="">-- выбери систему --</option>
               {systems.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.name || item.attributes?.name || `System #${item.id}`}
+                  {item.name ||
+                    item.attributes?.name ||
+                    `System #${item.id}`}
                 </option>
               ))}
             </select>
@@ -200,14 +306,26 @@ function App() {
             {questFields.map((field) => (
               <div
                 key={field.id}
-                style={{ marginBottom: 12, paddingBottom: 8, borderBottom: "1px solid #333" }}
+                style={{
+                  marginBottom: 12,
+                  paddingBottom: 8,
+                  borderBottom: "1px solid #333",
+                }}
               >
                 <div style={{ marginBottom: 4 }}>
                   <strong>{field.label || field.name}</strong>
-                  {field.required && <span style={{ color: "orange" }}> *</span>}
+                  {field.required && (
+                    <span style={{ color: "orange" }}> *</span>
+                  )}
                 </div>
                 {field.help && (
-                  <div style={{ fontSize: 12, color: "#aaa", marginBottom: 4 }}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: "#aaa",
+                      marginBottom: 4,
+                    }}
+                  >
                     {field.help}
                   </div>
                 )}
@@ -231,6 +349,9 @@ function App() {
       <pre style={{ background: "#222", padding: 12 }}>
         {response ? JSON.stringify(response, null, 2) : "Пока пусто"}
       </pre>
+
+      {/* Визуальный вывод результата калькулятора */}
+      <CalcResult data={response} />
     </div>
   );
 }
