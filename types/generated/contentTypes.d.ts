@@ -538,6 +538,7 @@ export interface ApiQuestQuest extends Struct.CollectionTypeSchema {
     draftAndPublish: true;
   };
   attributes: {
+    calctype: Schema.Attribute.Enumeration<['finchhand']>;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;

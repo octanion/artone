@@ -26,6 +26,13 @@
       "relation": "oneToOne",
       "target": "api::system.system",
       "inversedBy": "quest"
+    },
+    "calctype": {
+      "type": "enumeration",
+      "required": false,
+      "enum": [
+        "finchhand"
+      ]
     }
   }
 }
