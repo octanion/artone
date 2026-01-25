@@ -1,33 +1,92 @@
 import { useEffect, useState } from "react";
 
 // Новый компонент вывода результатов
-function CalcResult({ data }) {
+function CalcResult({ data, relationOptions }) {
   if (!data || !data.result) return null;
 
   const { result, answers } = data;
 
-  // 1) система и выбранный цвет (пока показываем ID цвета)
+  // 1) система и выбранный цвет
   const systemName = result.name;
   const colorId = answers?.colorpaint;
+
+  // ищем выбранный цвет в relationOptions.finchcolor
+  const finchColors = relationOptions?.finchcolor || [];
+  const selectedColor = finchColors.find(
+    (c) => String(c.id) === String(colorId)
+  );
+
+  const colorName = selectedColor?.name || (colorId || "не выбран");
+  const colorUnitPrice = selectedColor?.price || 0;
+
+  // вспомогательная функция: ступень finch по продукту
+  const detectFinchStep = (product) => {
+    const name = (product.name || "").toLowerCase();
+
+    // подправь условия под реальные названия продуктов
+    if (name.includes("(0)")) return "0";
+    if (name.includes("(2)")) return "2";
+    if (name.includes("(4)")) return "4";
+    if (name.includes("(9)")) return "9";
+
+    return null;
+  };
+
+  const FINCH_COEFS = {
+    "0": 0.9,
+    "2": 2,
+    "4": 4,
+    "9": 9,
+  };
 
   // фильтрация слоёв по флагам primerpaint / ggp
   const filteredLayers = (result.layers || []).filter((layer) => {
     const name = (layer.name || "").toLowerCase();
 
-    if (name.includes("глубокого проникновения") || name.includes("ггп")) {
+    // слой грунта глубокого проникновения
+    if (
+      name.includes("глубокого проникновения") ||
+      name.includes("ggp") ||
+      name.includes("ггп")
+    ) {
       return !!answers?.ggp;
     }
-    if (name.includes("праймер")) {
+
+    // слой грунт‑праймер и Фикс Супер
+    if (
+      name.includes("primer") ||
+      name.includes("праймер") ||
+      name.includes("фикс супер")
+    ) {
       return !!answers?.primerpaint;
     }
+
+    // остальные слои всегда показываем
     return true;
   });
 
-  // цена всех слоёв
+  // цена всех слоёв (без колеровки)
   const totalLayersPrice = filteredLayers.reduce(
     (sum, layer) => sum + (layer.totalPrice || 0),
     0
   );
+
+  // считаем цену колеровки только для слоя "Finch A валиком"
+  let coloringPrice = 0;
+  const finchLayer = filteredLayers.find((layer) =>
+    (layer.name || "").toLowerCase().includes("finch a валиком")
+  );
+
+  if (finchLayer && colorUnitPrice > 0) {
+    (finchLayer.products || []).forEach((p) => {
+      const step = detectFinchStep(p);
+      if (!step) return;
+      const k = FINCH_COEFS[step];
+      if (!k) return;
+      const count = p.count || 0;
+      coloringPrice += colorUnitPrice * k * count;
+    });
+  }
 
   // общий примерный вес по слоям (1л ~ 1кг, 5л ~ 5кг — потом заменим на weight)
   const totalLayersWeight = filteredLayers.reduce((sum, layer) => {
@@ -40,11 +99,8 @@ function CalcResult({ data }) {
     return sum + layerWeight;
   }, 0);
 
-  // 3) цена колеровки — пока 0 (потом подставим из справочника)
-  const colorPrice = 0;
-
-  // 4) общая стоимость
-  const grandTotalPrice = totalLayersPrice + colorPrice;
+  // общая стоимость (слои + колеровка)
+  const grandTotalPrice = totalLayersPrice + coloringPrice;
 
   return (
     <section style={{ marginTop: 24 }}>
@@ -52,7 +108,7 @@ function CalcResult({ data }) {
       <h2>Результат расчёта</h2>
       <p>
         Система: <strong>{systemName}</strong>; выбранный цвет:{" "}
-        <strong>{colorId || "не выбран"}</strong>
+        <strong>{colorName}</strong>
       </p>
 
       {/* 2) слои по выбранным флагам */}
@@ -85,7 +141,7 @@ function CalcResult({ data }) {
 
       {/* 3) цена колеровки */}
       <p style={{ marginTop: 16 }}>
-        Цена колеровки: <strong>{colorPrice}</strong> ₽
+        Цена колеровки: <strong>{coloringPrice}</strong> ₽
       </p>
 
       {/* 4) общая стоимость и вес */}
@@ -153,15 +209,15 @@ function App() {
       try {
         const res = await fetch(`http://localhost:1337/api/${col}s`);
         const data = await res.json();
-        // приводим к простому виду { id, name }
-        const items = (data.data || data || []).map((item) => ({
-          id: item.id,
-          name:
-            item.name ||
-            item.title ||
-            item.attributes?.name ||
-            `#${item.id}`,
-        }));
+        // приводим к простому виду { id, name, price }
+        const items = (data.data || data || []).map((item) => {
+          const attrs = item.attributes || item;
+          return {
+            id: item.id,
+            name: attrs.name || attrs.title || `#${item.id}`,
+            price: attrs.price ?? 0,
+          };
+        });
         newOptions[col] = items;
       } catch (e) {
         console.error("Ошибка загрузки relation options", col, e);
@@ -351,9 +407,11 @@ function App() {
       </pre>
 
       {/* Визуальный вывод результата калькулятора */}
-      <CalcResult data={response} />
+      <CalcResult data={response} relationOptions={relationOptions} />
     </div>
   );
 }
 
 export default App;
+
+

@@ -1,10 +1,8 @@
-// src/api/calc/services/calc.ts
-
 // ==== МАТЕМАТИКА ДЛЯ ОДНОГО СЛОЯ ====
 
 function findBestCombinationForLayer(layer: any, S: number) {
   const products = layer.products || [];
-  if (!products.length || S <= 0) {
+  if (!products.length || S <= 0 || !Number.isFinite(S)) {
     return {
       layerId: layer.id,
       name: layer.name,
@@ -33,6 +31,17 @@ function findBestCombinationForLayer(layer: any, S: number) {
   }
 
   const limit = S + maxConsumption;
+  if (!Number.isFinite(limit) || limit <= 0) {
+    return {
+      layerId: layer.id,
+      name: layer.name,
+      order: layer.order,
+      used: false,
+      totalCoveredArea: 0,
+      totalPrice: 0,
+      products: [],
+    };
+  }
 
   const INF = Number.MAX_SAFE_INTEGER;
   const dp: number[] = new Array(limit + 1).fill(INF);
@@ -137,11 +146,21 @@ function calcFinchHand({ system, answers }: any) {
 
   // площадь из анкеты
   const Sraw = answers?.consumptionquest;
-  const S = typeof Sraw === 'string' ? parseFloat(Sraw) : Number(Sraw || 0);
+  const S = typeof Sraw === "string" ? parseFloat(Sraw) : Number(Sraw || 0);
 
   let calcResult: any = null;
 
-  if (Number.isFinite(S) && S > 0 && Array.isArray(system.layers)) {
+  if (!Number.isFinite(S) || S <= 0) {
+    // некорректная площадь — просто возвращаем базовый ответ без расчёта
+    return {
+      type: "finchhand",
+      result: null,
+      answers,
+      quest,
+    };
+  }
+
+  if (Array.isArray(system.layers)) {
     const layers = [...system.layers].sort(
       (a, b) => (a.order || 0) - (b.order || 0)
     );
@@ -151,7 +170,12 @@ function calcFinchHand({ system, answers }: any) {
     let totalPrice = 0;
 
     for (const layer of layers) {
-      const layerResult = findBestCombinationForLayer(layer, S);
+      // если слой "Finch A валиком" — считаем с +10% запаса (округляем вниз)
+      const isFinchA =
+        (layer.name || "").toString().toLowerCase().includes("finch a валиком");
+      const layerS = isFinchA ? Math.floor(S * 1.1) : S;
+
+      const layerResult = findBestCombinationForLayer(layer, layerS);
       layerResults.push(layerResult);
 
       if (layerResult.used) {
@@ -174,8 +198,8 @@ function calcFinchHand({ system, answers }: any) {
 
   // ВАЖНО: возвращаем ТОЧНО тот же формат, что и раньше
   return {
-    type: 'finchhand',
-    result: calcResult ?? 'calculated',
+    type: "finchhand",
+    result: calcResult ?? "calculated",
     answers,
     quest,
   };
@@ -192,15 +216,15 @@ const calculators: Record<string, (params: any) => any> = {
 
 export default {
   async run(systemId: any, answers: any) {
-    console.log('Calc service called:', { systemId, answers });
+    console.log("Calc service called:", { systemId, answers });
 
     const system = await (strapi as any).entityService.findOne(
-      'api::system.system',
+      "api::system.system",
       systemId,
       {
         populate: {
           quest: {
-            populate: ['fields'],
+            populate: ["fields"],
           },
           layers: {
             populate: {
@@ -212,11 +236,11 @@ export default {
     );
 
     if (!system?.quest) {
-      throw new Error('Quest not found');
+      throw new Error("Quest not found");
     }
 
     const calcType = (system.quest as any).calctype;
-    console.log('Calc type:', calcType);
+    console.log("Calc type:", calcType);
 
     const calculator = calculators[calcType];
     if (!calculator) {
