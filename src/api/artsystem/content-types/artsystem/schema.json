@@ -15,11 +15,11 @@
       "type": "string",
       "required": true
     },
-    "questfields": {
+    "quest": {
       "type": "relation",
-      "relation": "oneToMany",
-      "target": "api::questfield.questfield",
-      "mappedBy": "artsystem"
+      "relation": "manyToOne",
+      "target": "api::quest.quest",
+      "inversedBy": "artsystems"
     }
   }
 }

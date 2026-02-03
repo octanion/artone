@@ -452,10 +452,7 @@ export interface ApiArtsystemArtsystem extends Struct.CollectionTypeSchema {
     > &
       Schema.Attribute.Private;
     publishedAt: Schema.Attribute.DateTime;
-    questfields: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::questfield.questfield'
-    >;
+    quest: Schema.Attribute.Relation<'manyToOne', 'api::quest.quest'>;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -570,6 +567,10 @@ export interface ApiQuestQuest extends Struct.CollectionTypeSchema {
     draftAndPublish: true;
   };
   attributes: {
+    artsystems: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::artsystem.artsystem'
+    >;
     calctype: Schema.Attribute.Enumeration<['finchhand']>;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &

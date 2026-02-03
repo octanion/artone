@@ -33,6 +33,12 @@
       "enum": [
         "finchhand"
       ]
+    },
+    "artsystems": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::artsystem.artsystem",
+      "mappedBy": "quest"
     }
   }
 }
