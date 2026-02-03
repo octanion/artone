@@ -430,6 +430,38 @@ export interface AdminUser extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiArtsystemArtsystem extends Struct.CollectionTypeSchema {
+  collectionName: 'artsystems';
+  info: {
+    displayName: 'artsystem';
+    pluralName: 'artsystems';
+    singularName: 'artsystem';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    ArtSystemsID: Schema.Attribute.String & Schema.Attribute.Required;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::artsystem.artsystem'
+    > &
+      Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
+    questfields: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::questfield.questfield'
+    >;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface ApiFinchcolorFinchcolor extends Struct.CollectionTypeSchema {
   collectionName: 'finchcolors';
   info: {
@@ -1137,6 +1169,7 @@ declare module '@strapi/strapi' {
       'admin::transfer-token': AdminTransferToken;
       'admin::transfer-token-permission': AdminTransferTokenPermission;
       'admin::user': AdminUser;
+      'api::artsystem.artsystem': ApiArtsystemArtsystem;
       'api::finchcolor.finchcolor': ApiFinchcolorFinchcolor;
       'api::layer.layer': ApiLayerLayer;
       'api::product.product': ApiProductProduct;

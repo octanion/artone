@@ -1,0 +1,25 @@
+{
+  "kind": "collectionType",
+  "collectionName": "artsystems",
+  "info": {
+    "singularName": "artsystem",
+    "pluralName": "artsystems",
+    "displayName": "artsystem"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "ArtSystemsID": {
+      "type": "string",
+      "required": true
+    },
+    "questfields": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::questfield.questfield",
+      "mappedBy": "artsystem"
+    }
+  }
+}
