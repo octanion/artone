@@ -16,7 +16,7 @@ function findBestCombinationForLayer(layer: any, S: number) {
 
   const maxConsumption = products.reduce(
     (max: number, p: any) => Math.max(max, p.consumption || 0),
-    0
+    0,
   );
   if (maxConsumption <= 0) {
     return {
@@ -46,7 +46,7 @@ function findBestCombinationForLayer(layer: any, S: number) {
   const INF = Number.MAX_SAFE_INTEGER;
   const dp: number[] = new Array(limit + 1).fill(INF);
   const prev: { prevArea: number; productIndex: number }[] = new Array(
-    limit + 1
+    limit + 1,
   ).fill(null as any);
 
   dp[0] = 0;
@@ -126,7 +126,9 @@ function findBestCombinationForLayer(layer: any, S: number) {
     });
   });
 
-  productsResult.sort((a, b) => a.price - b.price || a.name.localeCompare(b.name));
+  productsResult.sort(
+    (a, b) => a.price - b.price || a.name.localeCompare(b.name),
+  );
 
   return {
     layerId: layer.id,
@@ -144,14 +146,12 @@ function findBestCombinationForLayer(layer: any, S: number) {
 function calcFinchHand({ system, answers, color }: any) {
   const quest = system.quest;
 
-  // площадь из анкеты
   const Sraw = answers?.consumptionquest;
   const S = typeof Sraw === "string" ? parseFloat(Sraw) : Number(Sraw || 0);
 
   let calcResult: any = null;
 
   if (!Number.isFinite(S) || S <= 0) {
-    // некорректная площадь — просто возвращаем базовый ответ без расчёта
     return {
       type: "finchhand",
       result: null,
@@ -162,20 +162,19 @@ function calcFinchHand({ system, answers, color }: any) {
 
   if (Array.isArray(system.layers)) {
     const layers = [...system.layers].sort(
-      (a, b) => (a.order || 0) - (b.order || 0)
+      (a, b) => (a.order || 0) - (b.order || 0),
     );
 
     const layerResults: any[] = [];
     let totalCoveredArea = 0;
     let totalPrice = 0;
 
-    const useGgp = !!answers?.ggp; // чекбокс "Грунт глубокого проникновения"
-    const usePrimer = !!answers?.primerpaint; // чекбокс "грунт-праймер"
+    const useGgp = !!answers?.ggp;
+    const usePrimer = !!answers?.primerpaint;
 
     for (const layer of layers) {
       const nameStr = (layer.name || "").toString().toLowerCase();
 
-      // решаем, учитывать слой или нет
       let shouldUse = true;
       if (
         nameStr.includes("глубокого проникновения") ||
@@ -185,7 +184,6 @@ function calcFinchHand({ system, answers, color }: any) {
       } else if (nameStr.includes("primer") || nameStr.includes("праймер")) {
         shouldUse = usePrimer;
       } else {
-        // слой краски — всегда считаем
         shouldUse = true;
       }
 
@@ -202,7 +200,6 @@ function calcFinchHand({ system, answers, color }: any) {
         continue;
       }
 
-      // если слой "Finch A валиком" — считаем с +10% запаса (округляем вниз)
       const isFinchA = nameStr.includes("finch a валиком");
       const layerS = isFinchA ? Math.floor(S * 1.1) : S;
 
@@ -212,7 +209,7 @@ function calcFinchHand({ system, answers, color }: any) {
       if (layerResult.used) {
         totalCoveredArea = Math.max(
           totalCoveredArea,
-          layerResult.totalCoveredArea
+          layerResult.totalCoveredArea,
         );
         totalPrice += layerResult.totalPrice;
       }
@@ -226,31 +223,30 @@ function calcFinchHand({ system, answers, color }: any) {
       layers: layerResults,
     };
 
-    // === колеровка для слоя краски (Finch A ...) ===
     let kolerPrice = 0;
 
     if (color && Array.isArray(calcResult.layers)) {
-      const extra = Number(color.priceExtra || 0); // цена колера на 1 л
+      const extra = Number(color.priceExtra || 0);
       console.log("Color extra:", extra, "layers:", calcResult.layers.length);
 
       if (extra > 0) {
         for (const layer of calcResult.layers) {
           const nameStr = (layer.name || "").toString().toLowerCase();
-          const isPaintLayer = nameStr.includes("finch a"); // слой краски
+          const isPaintLayer = nameStr.includes("finch a");
           console.log(
             "Layer for koler:",
             layer.name,
             "used:",
             layer.used,
             "isPaint:",
-            isPaintLayer
+            isPaintLayer,
           );
 
           if (!isPaintLayer || !layer.used) continue;
 
           for (const p of layer.products || []) {
             const count = Number(p.count || 0);
-            const vol = Number(p.packageVolume || 0); // 0.9 / 2 / 4 / 9
+            const vol = Number(p.packageVolume || 0);
 
             console.log("Product for koler:", {
               name: p.name,
@@ -261,12 +257,11 @@ function calcFinchHand({ system, answers, color }: any) {
 
             if (count <= 0) continue;
 
-            // коэффициент по объёму банки
             let k = 0;
-            if (vol <= 1) k = 1; // 0.9 л
-            else if (vol <= 2.1) k = 2; // 2 л
-            else if (vol <= 4.1) k = 4; // 4 л
-            else if (vol <= 9.1) k = 9; // 9 л
+            if (vol <= 1) k = 1;
+            else if (vol <= 2.1) k = 2;
+            else if (vol <= 4.1) k = 4;
+            else if (vol <= 9.1) k = 9;
 
             if (k > 0) {
               const add = count * extra * k;
@@ -285,9 +280,109 @@ function calcFinchHand({ system, answers, color }: any) {
     }
   }
 
-  // возвращаем тот же формат
   return {
     type: "finchhand",
+    result: calcResult ?? "calculated",
+    answers,
+    quest,
+  };
+}
+
+// ==== КАЛЬКУЛЯТОР travertonaturale ====
+
+function calcTravertoNaturale({ system, answers, color }: any) {
+  const quest = system.quest;
+
+  const Sraw = answers?.consumptionquest;
+  const S = typeof Sraw === "string" ? parseFloat(Sraw) : Number(Sraw || 0);
+
+  let calcResult: any = null;
+
+  if (!Number.isFinite(S) || S <= 0) {
+    return {
+      type: "travertonaturale",
+      result: null,
+      answers,
+      quest,
+    };
+  }
+
+  if (Array.isArray(system.layers)) {
+    const layers = [...system.layers].sort(
+      (a, b) => (a.order || 0) - (b.order || 0),
+    );
+
+    const layerResults: any[] = [];
+    let totalCoveredArea = 0;
+    let totalPrice = 0;
+
+    const useFix = !!answers?.ggp; // Фикс Супер
+    const useFon = !!answers?.primerfon; // Фон (по твоему полю primerfon)
+    const travertoLac = answers?.travertolac; // none | matt | gloss
+
+    for (const layer of layers) {
+      const nameStr = (layer.name || "").toString().toLowerCase();
+
+      let shouldUse = true;
+
+      if (nameStr.includes("фикс супер")) {
+        shouldUse = useFix;
+      } else if (nameStr === "фон" || nameStr.includes("фон ")) {
+        shouldUse = useFon;
+      } else if (nameStr.includes("траверто натурале")) {
+        shouldUse = true; // всегда
+      } else if (
+        nameStr.includes("креатив матовый") ||
+        nameStr.includes("креатив глянцевый") ||
+        nameStr.includes("лак")
+      ) {
+        shouldUse = travertoLac && travertoLac !== "none";
+      } else {
+        shouldUse = true;
+      }
+
+      if (!shouldUse) {
+        layerResults.push({
+          layerId: layer.id,
+          name: layer.name,
+          order: layer.order,
+          used: false,
+          totalCoveredArea: 0,
+          totalPrice: 0,
+          products: [],
+        });
+        continue;
+      }
+
+      const isTraverto = nameStr.includes("траверто натурале");
+      const layerS = isTraverto ? Math.floor(S * 1.1) : S;
+
+      const layerResult = findBestCombinationForLayer(layer, layerS);
+      layerResults.push(layerResult);
+
+      if (layerResult.used) {
+        totalCoveredArea = Math.max(
+          totalCoveredArea,
+          layerResult.totalCoveredArea,
+        );
+        totalPrice += layerResult.totalPrice;
+      }
+    }
+
+    calcResult = {
+      systemId: system.id,
+      name: system.name,
+      totalCoveredArea,
+      totalPrice,
+      layers: layerResults,
+    };
+
+    // колеровка траверто (если понадобится, аналог финча — сейчас выключена)
+    // можно будет донастроить, когда появится travertocolor
+  }
+
+  return {
+    type: "travertonaturale",
     result: calcResult ?? "calculated",
     answers,
     quest,
@@ -298,6 +393,7 @@ function calcFinchHand({ system, answers, color }: any) {
 
 const calculators: Record<string, (params: any) => any> = {
   finchhand: calcFinchHand,
+  travertonaturale: calcTravertoNaturale,
 };
 
 // ==== ОБЁРТКА run: ИДЁМ ОТ artsystem → system ====
@@ -325,10 +421,11 @@ export default {
                 },
               },
               finchcolors: true,
+              travertocolor: true,
             },
           },
         },
-      }
+      },
     );
 
     if (!artsystem?.quest) {
@@ -340,14 +437,12 @@ export default {
       throw new Error("No systems linked to artsystem");
     }
 
-    // параметры выбора из анкеты
     const nanesenie = answers?.nanesenie;
-    const colorId = answers?.colorpaint;
+    const colorId = answers?.colorpaint || answers?.travertocolorpaint;
 
     console.log("Answers:", answers);
     console.log("nanesenie:", nanesenie, "colorId:", colorId);
 
-    // выбор system по нанесению
     let system =
       systems.find((s: any) => s.nanesenie === nanesenie) || systems[0];
 
@@ -357,12 +452,12 @@ export default {
       throw new Error("Suitable system not found");
     }
 
-    // грузим выбранный цвет
     let color: any = null;
     if (colorId) {
+      // пока используем finchcolor; позже можно разветвить по calcType
       color = await (strapi as any).entityService.findOne(
         "api::finchcolor.finchcolor",
-        colorId
+        colorId,
       );
       console.log(
         "Selected color:",
@@ -370,7 +465,7 @@ export default {
         "->",
         color?.name,
         "extra:",
-        color?.priceExtra
+        color?.priceExtra,
       );
     }
 
@@ -382,7 +477,6 @@ export default {
       throw new Error(`Unknown calctype: ${calcType}`);
     }
 
-    // прокидываем quest от artsystem в system, чтобы калькулятор его видел как раньше
     (system as any).quest = artsystem.quest;
 
     return calculator({ system, answers, color });

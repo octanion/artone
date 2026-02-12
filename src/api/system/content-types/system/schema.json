@@ -48,6 +48,12 @@
         "валиком",
         "краскопультом"
       ]
+    },
+    "travertocolor": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::traverocolor.traverocolor",
+      "inversedBy": "systems"
     }
   }
 }

@@ -573,7 +573,7 @@ export interface ApiQuestQuest extends Struct.CollectionTypeSchema {
       'oneToMany',
       'api::artsystem.artsystem'
     >;
-    calctype: Schema.Attribute.Enumeration<['finchhand']>;
+    calctype: Schema.Attribute.Enumeration<['finchhand', 'travertonaturale']>;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -670,6 +670,45 @@ export interface ApiSystemSystem extends Struct.CollectionTypeSchema {
     >;
     publishedAt: Schema.Attribute.DateTime;
     quest: Schema.Attribute.Relation<'oneToOne', 'api::quest.quest'>;
+    travertocolor: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::traverocolor.traverocolor'
+    >;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
+export interface ApiTraverocolorTraverocolor
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'traverocolors';
+  info: {
+    displayName: 'travertocolor';
+    pluralName: 'traverocolors';
+    singularName: 'traverocolor';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    Active: Schema.Attribute.Boolean &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<true>;
+    code: Schema.Attribute.String & Schema.Attribute.Required;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::traverocolor.traverocolor'
+    > &
+      Schema.Attribute.Private;
+    name: Schema.Attribute.String & Schema.Attribute.Required;
+    priceExtra: Schema.Attribute.Decimal & Schema.Attribute.Required;
+    publishedAt: Schema.Attribute.DateTime;
+    systems: Schema.Attribute.Relation<'oneToMany', 'api::system.system'>;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -1193,6 +1232,7 @@ declare module '@strapi/strapi' {
       'api::quest.quest': ApiQuestQuest;
       'api::questfield.questfield': ApiQuestfieldQuestfield;
       'api::system.system': ApiSystemSystem;
+      'api::traverocolor.traverocolor': ApiTraverocolorTraverocolor;
       'plugin::content-releases.release': PluginContentReleasesRelease;
       'plugin::content-releases.release-action': PluginContentReleasesReleaseAction;
       'plugin::i18n.locale': PluginI18NLocale;

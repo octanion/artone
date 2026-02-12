@@ -31,7 +31,8 @@
       "type": "enumeration",
       "required": false,
       "enum": [
-        "finchhand"
+        "finchhand",
+        "travertonaturale"
       ]
     },
     "artsystems": {
