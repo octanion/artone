@@ -29,6 +29,25 @@
       "relation": "oneToOne",
       "target": "api::quest.quest",
       "mappedBy": "system"
+    },
+    "artsystems": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::artsystem.artsystem",
+      "mappedBy": "systems"
+    },
+    "finchcolors": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::finchcolor.finchcolor",
+      "mappedBy": "system"
+    },
+    "nanesenie": {
+      "type": "enumeration",
+      "enum": [
+        "валиком",
+        "краскопультом"
+      ]
     }
   }
 }

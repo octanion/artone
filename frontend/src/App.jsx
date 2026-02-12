@@ -21,6 +21,9 @@ function App() {
   const [questError, setQuestError] = useState("");
   const [relationOptions, setRelationOptions] = useState({}); // { finchcolor: [...] }
 
+  // результат расчёта
+  const [calcResult, setCalcResult] = useState(null);
+
   const inputRef = useRef(null);
   const listRef = useRef(null);
 
@@ -123,6 +126,7 @@ function App() {
       setQuestFields([]);
       setFormValues({});
       setRelationOptions({});
+      setCalcResult(null);
 
       // пока квест один — finchquest; позже будем фильтровать по system/artsystem
       const res = await fetch(
@@ -206,12 +210,33 @@ function App() {
     // системный выбор оставляем, чтобы подсказка снизу показывалась
   };
 
-  const handleCalculate = () => {
-    // здесь будет переход на state 3: запрос к /api/calc
-    console.log("Отправляем на расчёт", {
-      systemId: selectedSystem?.id,
-      answers: formValues,
-    });
+  const handleCalculate = async () => {
+    try {
+      console.log("Отправляем на расчёт", {
+        artsystemId: selectedSystem?.id,
+        answers: formValues,
+      });
+
+      const res = await fetch("http://localhost:1337/api/calc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          artsystemId: selectedSystem?.id,
+          answers: formValues,
+        }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Ошибка ответа ${res.status}: ${text}`);
+      }
+
+      const data = await res.json();
+      console.log("Результат расчёта", data);
+      setCalcResult(data);
+    } catch (e) {
+      console.error("Ошибка расчёта", e);
+    }
   };
 
   // ---------- рендер ----------
@@ -327,6 +352,26 @@ function App() {
                       ))}
                     </select>
                   );
+                } else if (field.type === "select") {
+                  // option ожидаем как JSON‑массив: ["валиком","краскопультом"]
+                  const options = Array.isArray(field.option)
+                    ? field.option
+                    : [];
+
+                  inputEl = (
+                    <select
+                      className="text-input"
+                      value={value}
+                      onChange={(e) => handleFieldChange(field, e.target.value)}
+                    >
+                      <option value="">-- выберите вариант --</option>
+                      {options.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </select>
+                  );
                 } else {
                   inputEl = (
                     <input
@@ -385,6 +430,122 @@ function App() {
                 Рассчитать
               </button>
             </div>
+
+            {/* результат расчёта */}
+            {calcResult && (
+              <div
+                style={{
+                  marginTop: 24,
+                  padding: 16,
+                  borderRadius: 8,
+                  border: "1px solid #374151",
+                  textAlign: "left",
+                }}
+              >
+                <h3 style={{ margin: "0 0 8px", fontSize: 16 }}>
+                  Результат расчёта
+                </h3>
+
+                {calcResult.result &&
+                typeof calcResult.result === "object" ? (
+                  <>
+                    <p style={{ margin: "4px 0" }}>
+                      Система:{" "}
+                      <strong>{calcResult.result.name}</strong>
+                    </p>
+                    <p style={{ margin: "4px 0" }}>
+                      Общая площадь покрытия:{" "}
+                      <strong>
+                        {calcResult.result.totalCoveredArea}
+                      </strong>{" "}
+                      м²
+                    </p>
+
+                    {/* слои */}
+                    {Array.isArray(calcResult.result.layers) &&
+                      calcResult.result.layers
+                        .filter((layer) => layer.used)
+                        .sort(
+                          (a, b) => (a.order || 0) - (b.order || 0),
+                        )
+                        .map((layer) => (
+                          <div
+                            key={layer.layerId}
+                            style={{
+                              marginTop: 12,
+                              paddingTop: 8,
+                              borderTop: "1px dashed #4b5563",
+                            }}
+                          >
+                            <p style={{ margin: "0 0 4px" }}>
+                              <strong>{layer.name}</strong>{" "}
+                              <span
+                                style={{ color: "#9ca3af", fontSize: 13 }}
+                              >
+                                (стоимость слоя:{" "}
+                                {layer.totalPrice} ₽)
+                              </span>
+                            </p>
+
+                            {Array.isArray(layer.products) &&
+                            layer.products.length > 0 ? (
+                              <ul
+                                style={{
+                                  margin: "4px 0 0",
+                                  paddingLeft: 18,
+                                  fontSize: 14,
+                                }}
+                              >
+                                {layer.products.map((p) => (
+                                  <li key={p.productId}>
+                                    {p.name} — {p.count} шт. ×{" "}
+                                    {p.packageVolume} л по {p.price} ₽ ={" "}
+                                    {p.totalPrice} ₽
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p
+                                style={{
+                                  margin: "4px 0",
+                                  fontSize: 14,
+                                  color: "#9ca3af",
+                                }}
+                              >
+                                Для этого слоя материалы не
+                                подобраны.
+                              </p>
+                            )}
+                          </div>
+                        ))}
+
+                    {/* колеровка */}
+                    {calcResult.result.kolerPrice > 0 && (
+                      <p style={{ margin: "8px 0 0" }}>
+                        Колеровка:{" "}
+                        <strong>
+                          {calcResult.result.kolerPrice}
+                        </strong>{" "}
+                        ₽
+                      </p>
+                    )}
+
+                    {/* общая стоимость */}
+                    <p style={{ margin: "8px 0 0" }}>
+                      Общая стоимость материалов:{" "}
+                      <strong>
+                        {calcResult.result.totalPrice}
+                      </strong>{" "}
+                      ₽
+                    </p>
+                  </>
+                ) : (
+                  <p style={{ margin: "4px 0" }}>
+                    Расчёт выполнен.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

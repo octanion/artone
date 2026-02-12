@@ -27,6 +27,12 @@
     "priceExtra": {
       "type": "decimal",
       "required": true
+    },
+    "system": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::system.system",
+      "inversedBy": "finchcolors"
     }
   }
 }

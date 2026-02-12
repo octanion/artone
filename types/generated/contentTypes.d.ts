@@ -453,6 +453,7 @@ export interface ApiArtsystemArtsystem extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     publishedAt: Schema.Attribute.DateTime;
     quest: Schema.Attribute.Relation<'manyToOne', 'api::quest.quest'>;
+    systems: Schema.Attribute.Relation<'manyToMany', 'api::system.system'>;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -486,6 +487,7 @@ export interface ApiFinchcolorFinchcolor extends Struct.CollectionTypeSchema {
     name: Schema.Attribute.String & Schema.Attribute.Required;
     priceExtra: Schema.Attribute.Decimal & Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;
+    system: Schema.Attribute.Relation<'manyToOne', 'api::system.system'>;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -640,10 +642,18 @@ export interface ApiSystemSystem extends Struct.CollectionTypeSchema {
     draftAndPublish: true;
   };
   attributes: {
+    artsystems: Schema.Attribute.Relation<
+      'manyToMany',
+      'api::artsystem.artsystem'
+    >;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
     description: Schema.Attribute.String;
+    finchcolors: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::finchcolor.finchcolor'
+    >;
     layers: Schema.Attribute.Relation<'oneToMany', 'api::layer.layer'>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
@@ -652,6 +662,12 @@ export interface ApiSystemSystem extends Struct.CollectionTypeSchema {
     > &
       Schema.Attribute.Private;
     name: Schema.Attribute.String & Schema.Attribute.Required;
+    nanesenie: Schema.Attribute.Enumeration<
+      [
+        '\u0432\u0430\u043B\u0438\u043A\u043E\u043C',
+        '\u043A\u0440\u0430\u0441\u043A\u043E\u043F\u0443\u043B\u044C\u0442\u043E\u043C',
+      ]
+    >;
     publishedAt: Schema.Attribute.DateTime;
     quest: Schema.Attribute.Relation<'oneToOne', 'api::quest.quest'>;
     updatedAt: Schema.Attribute.DateTime;

@@ -139,9 +139,9 @@ function findBestCombinationForLayer(layer: any, S: number) {
   };
 }
 
-// ==== ТВОЙ КАЛЬКУЛЯТОР finchhand (СТАРЫЙ ФОРМАТ ОТВЕТА) ====
+// ==== КАЛЬКУЛЯТОР finchhand ====
 
-function calcFinchHand({ system, answers }: any) {
+function calcFinchHand({ system, answers, color }: any) {
   const quest = system.quest;
 
   // площадь из анкеты
@@ -169,10 +169,41 @@ function calcFinchHand({ system, answers }: any) {
     let totalCoveredArea = 0;
     let totalPrice = 0;
 
+    const useGgp = !!answers?.ggp; // чекбокс "Грунт глубокого проникновения"
+    const usePrimer = !!answers?.primerpaint; // чекбокс "грунт-праймер"
+
     for (const layer of layers) {
+      const nameStr = (layer.name || "").toString().toLowerCase();
+
+      // решаем, учитывать слой или нет
+      let shouldUse = true;
+      if (
+        nameStr.includes("глубокого проникновения") ||
+        nameStr.includes("фикс супер")
+      ) {
+        shouldUse = useGgp;
+      } else if (nameStr.includes("primer") || nameStr.includes("праймер")) {
+        shouldUse = usePrimer;
+      } else {
+        // слой краски — всегда считаем
+        shouldUse = true;
+      }
+
+      if (!shouldUse) {
+        layerResults.push({
+          layerId: layer.id,
+          name: layer.name,
+          order: layer.order,
+          used: false,
+          totalCoveredArea: 0,
+          totalPrice: 0,
+          products: [],
+        });
+        continue;
+      }
+
       // если слой "Finch A валиком" — считаем с +10% запаса (округляем вниз)
-      const isFinchA =
-        (layer.name || "").toString().toLowerCase().includes("finch a валиком");
+      const isFinchA = nameStr.includes("finch a валиком");
       const layerS = isFinchA ? Math.floor(S * 1.1) : S;
 
       const layerResult = findBestCombinationForLayer(layer, layerS);
@@ -194,9 +225,67 @@ function calcFinchHand({ system, answers }: any) {
       totalPrice,
       layers: layerResults,
     };
+
+    // === колеровка для слоя краски (Finch A ...) ===
+    let kolerPrice = 0;
+
+    if (color && Array.isArray(calcResult.layers)) {
+      const extra = Number(color.priceExtra || 0); // цена колера на 1 л
+      console.log("Color extra:", extra, "layers:", calcResult.layers.length);
+
+      if (extra > 0) {
+        for (const layer of calcResult.layers) {
+          const nameStr = (layer.name || "").toString().toLowerCase();
+          const isPaintLayer = nameStr.includes("finch a"); // слой краски
+          console.log(
+            "Layer for koler:",
+            layer.name,
+            "used:",
+            layer.used,
+            "isPaint:",
+            isPaintLayer
+          );
+
+          if (!isPaintLayer || !layer.used) continue;
+
+          for (const p of layer.products || []) {
+            const count = Number(p.count || 0);
+            const vol = Number(p.packageVolume || 0); // 0.9 / 2 / 4 / 9
+
+            console.log("Product for koler:", {
+              name: p.name,
+              count,
+              vol,
+              price: p.price,
+            });
+
+            if (count <= 0) continue;
+
+            // коэффициент по объёму банки
+            let k = 0;
+            if (vol <= 1) k = 1; // 0.9 л
+            else if (vol <= 2.1) k = 2; // 2 л
+            else if (vol <= 4.1) k = 4; // 4 л
+            else if (vol <= 9.1) k = 9; // 9 л
+
+            if (k > 0) {
+              const add = count * extra * k;
+              kolerPrice += add;
+              console.log("Koler add:", add, "kolerPrice now:", kolerPrice);
+            }
+          }
+        }
+      }
+    }
+
+    if (kolerPrice > 0) {
+      console.log("Final kolerPrice:", kolerPrice);
+      calcResult.totalPrice += kolerPrice;
+      calcResult.kolerPrice = kolerPrice;
+    }
   }
 
-  // ВАЖНО: возвращаем ТОЧНО тот же формат, что и раньше
+  // возвращаем тот же формат
   return {
     type: "finchhand",
     result: calcResult ?? "calculated",
@@ -209,37 +298,83 @@ function calcFinchHand({ system, answers }: any) {
 
 const calculators: Record<string, (params: any) => any> = {
   finchhand: calcFinchHand,
-  // если были другие типы, добавь их сюда
 };
 
-// ==== ОБЁРТКА run (ПОЧТИ КАК БЫЛО) ====
+// ==== ОБЁРТКА run: ИДЁМ ОТ artsystem → system ====
 
 export default {
-  async run(systemId: any, answers: any) {
-    console.log("Calc service called:", { systemId, answers });
+  async run(artsystemId: any, answers: any) {
+    console.log("Calc service called:", { artsystemId, answers });
 
-    const system = await (strapi as any).entityService.findOne(
-      "api::system.system",
-      systemId,
+    const artsystem = await (strapi as any).entityService.findOne(
+      "api::artsystem.artsystem",
+      artsystemId,
       {
         populate: {
           quest: {
             populate: ["fields"],
           },
-          layers: {
+          systems: {
             populate: {
-              products: true,
+              quest: {
+                populate: ["fields"],
+              },
+              layers: {
+                populate: {
+                  products: true,
+                },
+              },
+              finchcolors: true,
             },
           },
         },
       }
     );
 
-    if (!system?.quest) {
+    if (!artsystem?.quest) {
       throw new Error("Quest not found");
     }
 
-    const calcType = (system.quest as any).calctype;
+    const systems = artsystem.systems || [];
+    if (!systems.length) {
+      throw new Error("No systems linked to artsystem");
+    }
+
+    // параметры выбора из анкеты
+    const nanesenie = answers?.nanesenie;
+    const colorId = answers?.colorpaint;
+
+    console.log("Answers:", answers);
+    console.log("nanesenie:", nanesenie, "colorId:", colorId);
+
+    // выбор system по нанесению
+    let system =
+      systems.find((s: any) => s.nanesenie === nanesenie) || systems[0];
+
+    console.log("Selected system:", system?.id, "for nanesenie:", nanesenie);
+
+    if (!system) {
+      throw new Error("Suitable system not found");
+    }
+
+    // грузим выбранный цвет
+    let color: any = null;
+    if (colorId) {
+      color = await (strapi as any).entityService.findOne(
+        "api::finchcolor.finchcolor",
+        colorId
+      );
+      console.log(
+        "Selected color:",
+        colorId,
+        "->",
+        color?.name,
+        "extra:",
+        color?.priceExtra
+      );
+    }
+
+    const calcType = (artsystem.quest as any).calctype;
     console.log("Calc type:", calcType);
 
     const calculator = calculators[calcType];
@@ -247,6 +382,9 @@ export default {
       throw new Error(`Unknown calctype: ${calcType}`);
     }
 
-    return calculator({ system, answers });
+    // прокидываем quest от artsystem в system, чтобы калькулятор его видел как раньше
+    (system as any).quest = artsystem.quest;
+
+    return calculator({ system, answers, color });
   },
 };

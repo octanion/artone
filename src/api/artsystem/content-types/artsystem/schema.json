@@ -20,6 +20,12 @@
       "relation": "manyToOne",
       "target": "api::quest.quest",
       "inversedBy": "artsystems"
+    },
+    "systems": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::system.system",
+      "inversedBy": "artsystems"
     }
   }
 }
