@@ -518,7 +518,7 @@ export interface ApiLayerLayer extends Struct.CollectionTypeSchema {
     required: Schema.Attribute.Boolean &
       Schema.Attribute.Required &
       Schema.Attribute.DefaultTo<true>;
-    system: Schema.Attribute.Relation<'manyToOne', 'api::system.system'>;
+    systems: Schema.Attribute.Relation<'manyToMany', 'api::system.system'>;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -654,7 +654,7 @@ export interface ApiSystemSystem extends Struct.CollectionTypeSchema {
       'oneToMany',
       'api::finchcolor.finchcolor'
     >;
-    layers: Schema.Attribute.Relation<'oneToMany', 'api::layer.layer'>;
+    layers: Schema.Attribute.Relation<'manyToMany', 'api::layer.layer'>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',

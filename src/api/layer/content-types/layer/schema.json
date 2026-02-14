@@ -29,9 +29,9 @@
       "target": "api::product.product",
       "inversedBy": "layers"
     },
-    "system": {
+    "systems": {
       "type": "relation",
-      "relation": "manyToOne",
+      "relation": "manyToMany",
       "target": "api::system.system",
       "inversedBy": "layers"
     }

@@ -20,9 +20,9 @@
     },
     "layers": {
       "type": "relation",
-      "relation": "oneToMany",
+      "relation": "manyToMany",
       "target": "api::layer.layer",
-      "mappedBy": "system"
+      "mappedBy": "systems"
     },
     "quest": {
       "type": "relation",
