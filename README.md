@@ -1,61 +1,179 @@
-# 🚀 Getting started with Strapi
+# Artone
 
-Strapi comes with a full featured [Command Line Interface](https://docs.strapi.io/dev-docs/cli) (CLI) which lets you scaffold and manage your project in seconds.
+Проект калькулятора декоративных покрытий Artone.
 
-### `develop`
+Сейчас репозиторий состоит из двух основных частей:
 
-Start your Strapi application with autoReload enabled. [Learn more](https://docs.strapi.io/dev-docs/cli#strapi-develop)
+- Strapi-бэкенд в корне репозитория
+- отдельный фронтенд в папке `frontend/`
 
-```
-npm run develop
-# or
-yarn develop
-```
+## Структура проекта
 
-### `start`
+### Бэкенд
 
-Start your Strapi application with autoReload disabled. [Learn more](https://docs.strapi.io/dev-docs/cli#strapi-start)
+Корень репозитория — это Strapi-проект на Node.js/TypeScript.
 
-```
-npm run start
-# or
-yarn start
-```
+Основные папки:
 
-### `build`
+- `src/` — исходный код Strapi
+- `config/` — конфигурация проекта
+- `database/` — настройки базы данных и связанные файлы
+- `public/` — публичные статические файлы
+- `types/` — TypeScript-типы
 
-Build your admin panel. [Learn more](https://docs.strapi.io/dev-docs/cli#strapi-build)
+В `src/api/` находятся основные сущности калькулятора:
 
-```
-npm run build
-# or
-yarn build
-```
+- `artsystem`
+- `system`
+- `layer`
+- `product`
+- `quest`
+- `questfield`
+- `finchcolor`
+- `traverocolor`
+- `calc`
 
-## ⚙️ Deployment
+### Фронтенд
 
-Strapi gives you many possible deployment options for your project including [Strapi Cloud](https://cloud.strapi.io). Browse the [deployment section of the documentation](https://docs.strapi.io/dev-docs/deployment) to find the best solution for your use case.
+Во `frontend/` расположен отдельный клиентский проект.
 
-```
-yarn strapi deploy
-```
+По структуре видно, что это самостоятельное приложение с собственными:
 
-## 📚 Learn more
+- `package.json`
+- `vite.config.js`
+- `src/`
+- `public/`
 
-- [Resource center](https://strapi.io/resource-center) - Strapi resource center.
-- [Strapi documentation](https://docs.strapi.io) - Official Strapi documentation.
-- [Strapi tutorials](https://strapi.io/tutorials) - List of tutorials made by the core team and the community.
-- [Strapi blog](https://strapi.io/blog) - Official Strapi blog containing articles made by the Strapi team and the community.
-- [Changelog](https://strapi.io/changelog) - Find out about the Strapi product updates, new features and general improvements.
+То есть фронтенд и CMS/бэкенд разделены по папкам, но живут в одном репозитории.
 
-Feel free to check out the [Strapi GitHub repository](https://github.com/strapi/strapi). Your feedback and contributions are welcome!
+## Как сейчас работает калькулятор
 
-## ✨ Community
+Основная логика расчёта находится в:
 
-- [Discord](https://discord.strapi.io) - Come chat with the Strapi community including the core team.
-- [Forum](https://forum.strapi.io/) - Place to discuss, ask questions and find answers, show your Strapi project and get feedback or just talk with other Community members.
-- [Awesome Strapi](https://github.com/strapi/awesome-strapi) - A curated list of awesome things related to Strapi.
+`src/api/calc/services/calc.ts`
 
----
+### Общий поток
 
-<sub>🤫 Psst! [Strapi is hiring](https://strapi.io/careers).</sub>
+1. На вход сервис получает `artsystemId` и `answers`.
+2. По `artsystemId` из Strapi загружается:
+   - сам `artsystem`
+   - связанный `quest`
+   - связанные `systems`
+   - их `layers`
+   - продукты каждого слоя
+   - доступные цвета
+3. Из списка `systems` выбирается нужная система по ответу `nanesenie`.
+4. Тип калькулятора определяется через `artsystem.quest.calctype`.
+5. Дальше вызывается соответствующий обработчик расчёта.
+
+Сейчас зарегистрированы два типа калькулятора:
+
+- `finchhand`
+- `travertonaturale`
+
+## Модель данных
+
+Текущая логическая цепочка выглядит так:
+
+`artsystem -> quest -> systems -> layers -> products`
+
+Где:
+
+- `artsystem` — верхний уровень декоративной системы
+- `quest` — опросник и тип калькулятора
+- `systems` — варианты системы под разные способы нанесения
+- `layers` — слои покрытия в порядке нанесения
+- `products` — конкретные материалы с ценой, фасовкой и покрытием
+
+## Логика подбора материалов
+
+Для каждого слоя используется функция:
+
+`findBestCombinationForLayer(layer, S)`
+
+Её задача — подобрать **самую дешёвую комбинацию упаковок**, которая перекрывает нужную площадь `S`.
+
+### Как это работает
+
+- у каждого продукта есть:
+  - `price`
+  - `consumption` — сколько квадратных метров покрывает одна упаковка
+- для слоя строится динамическая таблица стоимости
+- затем выбирается минимальная стоимость, которая покрывает площадь не меньше требуемой
+- после этого восстанавливается:
+  - какие продукты были выбраны
+  - сколько упаковок нужно
+  - итоговая стоимость слоя
+  - итоговая покрываемая площадь
+
+Иными словами, сейчас калькулятор считает не просто расход “по формуле”, а подбирает **оптимальную по цене комбинацию банок**.
+
+## Специфика `finchhand`
+
+Для `finchhand`:
+
+- площадь берётся из `answers.consumptionquest`
+- часть слоёв включается условно
+- грунт глубокого проникновения / `Фикс Супер` зависит от `answers.ggp`
+- праймер зависит от `answers.primerpaint`
+
+Отдельная особенность:
+
+- если слой содержит в названии `Finch A валиком`, для него площадь увеличивается примерно на 10%
+
+То есть расчёт идёт не строго по исходной площади, а с дополнительным запасом для этого слоя.
+
+### Колеровка в `finchhand`
+
+Если выбран цвет, сервис загружает сущность цвета и добавляет стоимость колеровки.
+
+Надбавка:
+
+- применяется только к слоям, связанным с `Finch A`
+- зависит от `priceExtra`
+- зависит от количества банок
+- зависит от объёма упаковки (`packageVolume`)
+
+По сути, колеровка считается как отдельная доплата поверх базовой стоимости материалов.
+
+## Специфика `travertonaturale`
+
+Для `travertonaturale`:
+
+- площадь также берётся из `answers.consumptionquest`
+- `answers.ggp` управляет использованием слоя `Фикс Супер`
+- `answers.primerfon` управляет слоем `Фон`
+- `answers.travertolac` определяет использование лака:
+  - `none`
+  - `matt`
+  - `gloss`
+
+Для слоя `Траверто Натурале` тоже применяется запас примерно 10%.
+
+В текущей логике отдельная надбавка за колеровку, как в `finchhand`, здесь не добавляется.
+
+## Что важно понимать
+
+Сейчас Strapi используется не просто как админка, а как источник конфигурации калькулятора.
+
+То есть через CMS определяются:
+
+- вопросы пользователю
+- тип калькулятора
+- доступные системы нанесения
+- состав слоёв
+- продукты в слоях
+- цвета и доплаты
+
+Из-за этого значительная часть поведения калькулятора задаётся данными в Strapi, а не только фронтендом.
+
+## Техническое резюме
+
+Сейчас проект устроен так:
+
+- Strapi хранит и отдаёт структуру калькулятора
+- сервис `calc.ts` принимает ответы пользователя
+- по ответам выбирается нужная система
+- по каждому слою подбирается минимально дорогой набор материалов
+- затем считается общий итог и, при необходимости, доплаты за колеровку
+- фронтенд в `frontend/` выступает клиентским интерфейсом к этой логике
