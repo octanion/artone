@@ -317,7 +317,7 @@ function calcTravertoNaturale({ system, answers, color }: any) {
     let totalPrice = 0;
 
     const useFix = !!answers?.ggp; // Фикс Супер
-    const useFon = !!answers?.primerfon; // Фон (по твоему полю primerfon)
+    const useFon = !!answers?.primerfon; // Фон
     const travertoLac = answers?.travertolac; // none | matt | gloss
 
     for (const layer of layers) {
@@ -331,11 +331,11 @@ function calcTravertoNaturale({ system, answers, color }: any) {
         shouldUse = useFon;
       } else if (nameStr.includes("траверто натурале")) {
         shouldUse = true; // всегда
-      } else if (
-        nameStr.includes("креатив матовый") ||
-        nameStr.includes("креатив глянцевый") ||
-        nameStr.includes("лак")
-      ) {
+      } else if (nameStr.includes("креатив матовый")) {
+        shouldUse = travertoLac === "matt";
+      } else if (nameStr.includes("креатив глянцевый")) {
+        shouldUse = travertoLac === "gloss";
+      } else if (nameStr.includes("лак")) {
         shouldUse = travertoLac && travertoLac !== "none";
       } else {
         shouldUse = true;
@@ -376,9 +376,6 @@ function calcTravertoNaturale({ system, answers, color }: any) {
       totalPrice,
       layers: layerResults,
     };
-
-    // колеровка траверто (если понадобится, аналог финча — сейчас выключена)
-    // можно будет донастроить, когда появится travertocolor
   }
 
   return {
@@ -444,7 +441,16 @@ export default {
     console.log("nanesenie:", nanesenie, "colorId:", colorId);
 
     let system =
-      systems.find((s: any) => s.nanesenie === nanesenie) || systems[0];
+      systems.find((s: any) => {
+        const sysNan = (s.nanesenie as any) || null;
+        if (!sysNan) return false;
+
+        if (typeof sysNan === "object") {
+          return sysNan.name === nanesenie || sysNan.id == nanesenie;
+        }
+
+        return sysNan === nanesenie;
+      }) || systems[0];
 
     console.log("Selected system:", system?.id, "for nanesenie:", nanesenie);
 
@@ -454,7 +460,6 @@ export default {
 
     let color: any = null;
     if (colorId) {
-      // пока используем finchcolor; позже можно разветвить по calcType
       color = await (strapi as any).entityService.findOne(
         "api::finchcolor.finchcolor",
         colorId,

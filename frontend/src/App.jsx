@@ -42,7 +42,6 @@ function App() {
           id: item.id,
           name: item.ArtSystemsID,
         }));
-
         setAllSystems(items);
       } catch (e) {
         console.error(e);
@@ -71,6 +70,7 @@ function App() {
     setQuery(system.name);
     setIsOpen(false);
     setHighlightIndex(-1);
+
     // переходим к шагу 2 — загрузка квеста
     loadQuestForSystem(system);
   };
@@ -80,7 +80,6 @@ function App() {
       setIsOpen(true);
       return;
     }
-
     if (!isOpen || suggestions.length === 0) return;
 
     if (e.key === "ArrowDown") {
@@ -128,12 +127,15 @@ function App() {
       setRelationOptions({});
       setCalcResult(null);
 
-      // имя квеста совпадает с calctype/названием quest в Strapi:
-      // для Finch: finchquest, для Траверто: travertonaturalequest
-      const questName =
-        system.name === "Траверто Натурале"
-          ? "travertonaturalequest"
-          : "finchquest";
+      // имя квеста совпадает с calctype/названием quest в Strapi
+      let questName = "finchquest";
+
+      if (system.name === "Траверто Натурале") {
+        questName = "travertonaturalequest";
+      } else if (system.name === "Ibeton Plus Medio") {
+        // точное название, как в ArtSystemsID
+        questName = "ibetonplusmedio";
+      }
 
       const res = await fetch(
         `http://localhost:1337/api/quests?filters[name][$eq]=${encodeURIComponent(
@@ -180,6 +182,7 @@ function App() {
           .map((f) => f.relationCollection),
       ),
     );
+
     if (!collections.length) return;
 
     const newOptions = {};
@@ -247,288 +250,210 @@ function App() {
   };
 
   // ---------- рендер ----------
-
   return (
     <div className="app-root">
-      <div className="search-card">
-        <h1 className="app-title">Выбор системы</h1>
+      {step === 1 && (
+        <div className="step1">
+          <h1>Выбор системы</h1>
 
-        {/* state 1: выбор системы */}
-        <div className="autocomplete-root">
-          <input
-            ref={inputRef}
-            className="search-input"
-            type="text"
-            placeholder="Начни вводить название системы..."
-            value={query}
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-            disabled={step !== 1}
-          />
-
-          {loadingSystems && <p className="hint">Загрузка списка систем...</p>}
+          {loadingSystems && <p>Загрузка списка систем...</p>}
           {systemsError && <p className="error">{systemsError}</p>}
 
-          {isOpen && !loadingSystems && !systemsError && query && (
-            <ul className="search-list" ref={listRef}>
-              {suggestions.length === 0 && (
-                <li className="search-item muted">Ничего не найдено</li>
-              )}
-              {suggestions.map((s, index) => (
-                <li
-                  key={s.id}
-                  className={
-                    "search-item" +
-                    (index === highlightIndex ? " search-item--active" : "")
-                  }
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    selectSystem(s);
-                  }}
-                >
-                  {s.name}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {selectedSystem && (
-          <p className="hint" style={{ marginTop: 12 }}>
-            Выбрана система: <strong>{selectedSystem.name}</strong> (id:{" "}
-            {selectedSystem.id})
-          </p>
-        )}
-
-        {/* state 2: вопросы квеста */}
-        {step === 2 && (
-          <div style={{ marginTop: 24 }}>
-            <h2 style={{ fontSize: 18, margin: "0 0 12px" }}>
-              Параметры расчёта
-            </h2>
-
-            {loadingQuest && (
-              <p className="hint">Загрузка опроса для системы...</p>
-            )}
-            {questError && <p className="error">{questError}</p>}
-
-            {!loadingQuest &&
-              !questError &&
-              questFields.map((field) => {
-                const value = formValues[field.name] ?? "";
-
-                let inputEl = null;
-
-                if (field.type === "boolean") {
-                  inputEl = (
-                    <input
-                      type="checkbox"
-                      checked={!!value}
-                      onChange={(e) =>
-                        handleFieldChange(field, e.target.checked)
-                      }
-                    />
-                  );
-                } else if (field.type === "number") {
-                  inputEl = (
-                    <input
-                      className="text-input"
-                      type="number"
-                      value={value}
-                      onChange={(e) => handleFieldChange(field, e.target.value)}
-                    />
-                  );
-                } else if (
-                  field.type === "relation" &&
-                  field.relationCollection
-                ) {
-                  const options =
-                    relationOptions[field.relationCollection] || [];
-                  inputEl = (
-                    <select
-                      className="text-input"
-                      value={value}
-                      onChange={(e) => handleFieldChange(field, e.target.value)}
-                    >
-                      <option value="">-- выберите вариант --</option>
-                      {options.map((opt) => (
-                        <option key={opt.id} value={opt.id}>
-                          {opt.name}
-                        </option>
-                      ))}
-                    </select>
-                  );
-                } else if (field.type === "select") {
-                  const options = Array.isArray(field.option)
-                    ? field.option
-                    : [];
-
-                  inputEl = (
-                    <select
-                      className="text-input"
-                      value={value}
-                      onChange={(e) => handleFieldChange(field, e.target.value)}
-                    >
-                      <option value="">-- выберите вариант --</option>
-                      {options.map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt}
-                        </option>
-                      ))}
-                    </select>
-                  );
-                } else {
-                  inputEl = (
-                    <input
-                      className="text-input"
-                      type="text"
-                      value={value}
-                      onChange={(e) => handleFieldChange(field, e.target.value)}
-                    />
-                  );
-                }
-
-                return (
-                  <div
-                    key={field.id}
-                    style={{
-                      marginBottom: 14,
-                      paddingBottom: 10,
-                      borderBottom: "1px solid #374151",
-                    }}
-                  >
-                    <div style={{ marginBottom: 4 }}>
-                      <strong>{field.label || field.name}</strong>
-                      {field.required && (
-                        <span style={{ color: "orange" }}> *</span>
-                      )}
-                    </div>
-                    {field.help && (
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: "#9ca3af",
-                          marginBottom: 4,
-                        }}
-                      >
-                        {field.help}
-                      </div>
-                    )}
-                    {inputEl}
-                  </div>
-                );
-              })}
-
-            <div
-              style={{
-                marginTop: 16,
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 12,
-              }}
-            >
-              <button type="button" onClick={handleBackToStep1}>
-                ← Назад
-              </button>
-              <button type="button" onClick={handleCalculate}>
-                Рассчитать
-              </button>
-            </div>
-
-            {calcResult && (
-              <div
-                style={{
-                  marginTop: 24,
-                  padding: 16,
-                  borderRadius: 8,
-                  border: "1px solid #374151",
-                  textAlign: "left",
-                }}
-              >
-                <h3 style={{ margin: "0 0 8px", fontSize: 16 }}>
-                  Результат расчёта
-                </h3>
-
-                {calcResult.result && typeof calcResult.result === "object" ? (
-                  <>
-                    <p style={{ margin: "4px 0" }}>
-                      Система: <strong>{calcResult.result.name}</strong>
-                    </p>
-                    <p style={{ margin: "4px 0" }}>
-                      Общая площадь покрытия:{" "}
-                      <strong>{calcResult.result.totalCoveredArea}</strong> м²
-                    </p>
-
-                    {Array.isArray(calcResult.result.layers) &&
-                      calcResult.result.layers
-                        .filter((layer) => layer.used)
-                        .sort((a, b) => (a.order || 0) - (b.order || 0))
-                        .map((layer) => (
-                          <div
-                            key={layer.layerId}
-                            style={{
-                              marginTop: 12,
-                              paddingTop: 8,
-                              borderTop: "1px dashed #4b5563",
-                            }}
-                          >
-                            <p style={{ margin: "0 0 4px" }}>
-                              <strong>{layer.name}</strong>{" "}
-                              <span style={{ color: "#9ca3af", fontSize: 13 }}>
-                                (стоимость слоя: {layer.totalPrice} ₽)
-                              </span>
-                            </p>
-
-                            {Array.isArray(layer.products) &&
-                            layer.products.length > 0 ? (
-                              <ul
-                                style={{
-                                  margin: "4px 0 0",
-                                  paddingLeft: 18,
-                                  fontSize: 14,
-                                }}
-                              >
-                                {layer.products.map((p) => (
-                                  <li key={p.productId}>
-                                    {p.name} — {p.count} шт. × {p.packageVolume}{" "}
-                                    л по {p.price} ₽ = {p.totalPrice} ₽
-                                  </li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <p
-                                style={{
-                                  margin: "4px 0",
-                                  fontSize: 14,
-                                  color: "#9ca3af",
-                                }}
-                              >
-                                Для этого слоя материалы не подобраны.
-                              </p>
-                            )}
-                          </div>
-                        ))}
-
-                    {calcResult.result.kolerPrice > 0 && (
-                      <p style={{ margin: "8px 0 0" }}>
-                        Колеровка:{" "}
-                        <strong>{calcResult.result.kolerPrice}</strong> ₽
-                      </p>
-                    )}
-
-                    <p style={{ margin: "8px 0 0" }}>
-                      Общая стоимость материалов:{" "}
-                      <strong>{calcResult.result.totalPrice}</strong> ₽
-                    </p>
-                  </>
-                ) : (
-                  <p style={{ margin: "4px 0" }}>Расчёт выполнен.</p>
+          <div className="autocomplete">
+            <input
+              ref={inputRef}
+              className="text-input"
+              type="text"
+              value={query}
+              onChange={handleChange}
+              onKeyDown={handleKeyDown}
+              placeholder="Начните вводить название системы..."
+            />
+            {isOpen && !loadingSystems && !systemsError && query && (
+              <ul className="suggestions" ref={listRef}>
+                {suggestions.length === 0 && (
+                  <li className="no-results">Ничего не найдено</li>
                 )}
-              </div>
+                {suggestions.map((s, index) => (
+                  <li
+                    key={s.id}
+                    className={
+                      index === highlightIndex ? "highlighted" : undefined
+                    }
+                    onClick={() => selectSystem(s)}
+                  >
+                    {s.name}
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {step === 2 && (
+        <div className="step2">
+          <button className="back-button" onClick={handleBackToStep1}>
+            ← Назад
+          </button>
+
+          {selectedSystem && (
+            <h2>
+              Выбрана система: <strong>{selectedSystem.name}</strong> (id:{" "}
+              {selectedSystem.id})
+            </h2>
+          )}
+
+          {loadingQuest && <p>Загрузка опроса для системы...</p>}
+          {questError && <p className="error">{questError}</p>}
+
+          {!loadingQuest &&
+            !questError &&
+            questFields.map((field) => {
+              const value = formValues[field.name] ?? "";
+              let inputEl = null;
+
+              if (field.type === "boolean") {
+                inputEl = (
+                  <input
+                    type="checkbox"
+                    checked={!!value}
+                    onChange={(e) => handleFieldChange(field, e.target.checked)}
+                  />
+                );
+              } else if (field.type === "number") {
+                inputEl = (
+                  <input
+                    className="text-input"
+                    type="number"
+                    value={value}
+                    onChange={(e) => handleFieldChange(field, e.target.value)}
+                  />
+                );
+              } else if (
+                field.type === "relation" &&
+                field.relationCollection
+              ) {
+                const options = relationOptions[field.relationCollection] || [];
+                inputEl = (
+                  <select
+                    className="text-input"
+                    value={value}
+                    onChange={(e) => handleFieldChange(field, e.target.value)}
+                  >
+                    <option value="">-- выберите вариант --</option>
+                    {options.map((opt) => (
+                      <option key={opt.id} value={opt.id}>
+                        {opt.name}
+                      </option>
+                    ))}
+                  </select>
+                );
+              } else if (field.type === "select") {
+                const raw = field.option;
+                const options = Array.isArray(raw)
+                  ? raw
+                  : Array.isArray(raw?.options)
+                    ? raw.options
+                    : [];
+
+                inputEl = (
+                  <select
+                    className="text-input"
+                    value={value}
+                    onChange={(e) => handleFieldChange(field, e.target.value)}
+                  >
+                    <option value="">-- выберите вариант --</option>
+                    {options.map((opt, idx) => {
+                      // поддерживаем и простой массив строк, и объекты { value, label }
+                      if (typeof opt === "string" || typeof opt === "number") {
+                        return (
+                          <option key={idx} value={opt}>
+                            {opt}
+                          </option>
+                        );
+                      }
+                      return (
+                        <option key={opt.value ?? idx} value={opt.value}>
+                          {opt.label ?? String(opt.value ?? "")}
+                        </option>
+                      );
+                    })}
+                  </select>
+                );
+              } else {
+                inputEl = (
+                  <input
+                    className="text-input"
+                    type="text"
+                    value={value}
+                    onChange={(e) => handleFieldChange(field, e.target.value)}
+                  />
+                );
+              }
+
+              return (
+                <div key={field.name} className="field-row">
+                  {field.label && (
+                    <label className="field-label">{field.label}</label>
+                  )}
+                  {field.help && <div className="field-help">{field.help}</div>}
+                  {inputEl}
+                </div>
+              );
+            })}
+
+          <button className="calc-button" onClick={handleCalculate}>
+            Рассчитать
+          </button>
+
+          {calcResult && calcResult.result && (
+            <div className="result-block">
+              <h3>
+                Система: <strong>{calcResult.result.name}</strong>
+              </h3>
+              <p>
+                Общая площадь покрытия:{" "}
+                <strong>{calcResult.result.totalCoveredArea}</strong> м²
+              </p>
+
+              {Array.isArray(calcResult.result.layers) &&
+                calcResult.result.layers.map((layer) => (
+                  <div key={layer.layerId} className="layer-block">
+                    <h4>
+                      {layer.name} (стоимость слоя: {layer.totalPrice} ₽)
+                    </h4>
+                    {layer.used && layer.products.length > 0 ? (
+                      <ul>
+                        {layer.products.map((p) => (
+                          <li key={p.productId}>
+                            {p.name}: {p.count} уп. × {p.price} ₽ ={" "}
+                            {p.totalPrice} ₽ (покрытие {p.coveredArea} м²)
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p>Для этого слоя материалы не подобраны.</p>
+                    )}
+                  </div>
+                ))}
+
+              {calcResult.result.kolerPrice != null && (
+                <p>
+                  Колеровка: <strong>{calcResult.result.kolerPrice}</strong> ₽
+                </p>
+              )}
+
+              <p>
+                Общая стоимость материалов:{" "}
+                <strong>{calcResult.result.totalPrice}</strong> ₽
+              </p>
+
+              <p>Расчёт выполнен.</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
